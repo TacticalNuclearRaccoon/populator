@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import bcrypt
 
-st.set_page_config(layout='wide', page_icon=":beer:", page_title="Outil d’analyse Bousole des personnalités")
+st.set_page_config(layout='wide', page_icon=":beer:", page_title="Renseigner des dysfonctionnements")
 
 ###### TO DO : CATEGORY WHEN USER IS VIGIE
 
@@ -106,7 +106,7 @@ def fetch_results_from_database():
     return response.json()
 
 
-def insert_dysfunction_to_database(dys, impact, exemple, solutions, category):
+def insert_dysfunction_to_database(dys, impact, exemple, solutions, category, added_by):
     url = f"{DATABASE_URL}/rest/v1/new_dysfunctions"
     headers = {
         "apikey": DATABASE_API_KEY,
@@ -119,7 +119,8 @@ def insert_dysfunction_to_database(dys, impact, exemple, solutions, category):
         "impact": impact,
         "exemple": exemple,
         "solutions": solutions,
-        "thématique": category
+        "thématique": category,
+        "added_by": added_by,
     }
     response = requests.post(url, headers=headers, json=payload)
     print(response.status_code, response.text)
@@ -130,6 +131,9 @@ data = fetch_results_from_database()
 
 stars =["Collaborer en équipe", "Mesurer la vision produit"]
 theme_is_new = False
+
+added_by = st.session_state.get('username', '')
+st.write(f"Utilisateur connecté : {added_by} ({st.session_state.get('role', 'Vigie')})")
 
 st.title("Alimentation des dysfonctionnements")
 if st.session_state.get('role') == 'Argios':
@@ -173,7 +177,8 @@ dys = st.text_input("Le dysfonctionnement")
 impact = st.text_input("L'impact")
 exemple = st.text_input("Un exemple")
 solutions = st.text_area("Solutions")
-saved_category = f"{username}_{category}"
+saved_category = f"{category}"
+st.write(f"dysfonctionnement ajouté par : {added_by}")
 
 submit = st.button('Ajouter le dysfonctionnement')
 if 'dys_posted' not in st.session_state:
@@ -182,9 +187,12 @@ if 'dys_posted' not in st.session_state:
 if submit:
     if st.session_state['dys_posted']:
         st.warning('Le dysfonctionnement a déjà été envoyé pour cette session.', icon='⚠️')
+        if st.button('Ajouter un autre dysfonctionnement'):
+            st.session_state['dys_posted'] = False
+            st.rerun()
     else:
         try:
-            insert_dysfunction_to_database(dys, impact, exemple, solutions, saved_category)
+            insert_dysfunction_to_database(dys, impact, exemple, solutions, saved_category, added_by)
             st.success('Dysfonctionnement ajouté avec succès !')
             st.session_state['dys_posted'] = True
         except Exception as e:
